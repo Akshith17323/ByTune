@@ -46,9 +46,5 @@ phase*-rect-results.json
 /scripts/.bytune-install
 .test-fixtures
 
-# ZCode agent scratch (local plans/temp scripts, never shared)
-/.zcode/
-/.zcodeignore
-
 # Per-run temp dir for tests (scripts/with-test-temp.mjs)
 .test-tmp/
