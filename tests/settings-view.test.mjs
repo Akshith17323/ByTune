@@ -28,6 +28,7 @@ const { outputFiles } = await build({
     contents: [
       `export { SettingsView } from "./src/views/SettingsView";`,
       `export { useSettings } from "./src/stores/settings";`,
+      `export { usePanelLayout } from "./src/stores/panelLayout";`,
       `export { useUI } from "./src/stores/ui";`,
       `export { useSession } from "./src/lib/session";`,
     ].join("\n"),
@@ -40,7 +41,7 @@ const { outputFiles } = await build({
 });
 const module = { exports: {} };
 new Function("require", "module", "exports", outputFiles[0].text)(require, module, module.exports);
-const { SettingsView, useSettings, useUI, useSession } = module.exports;
+const { SettingsView, useSettings, usePanelLayout, useUI, useSession } = module.exports;
 
 globalThis.ResizeObserver = class {
   observe() {}
@@ -169,6 +170,23 @@ test("a category swaps the page in place, with no history step, and the arrow ke
     await h.key(h.nav("Account"), "ArrowUp");
     assert.equal(useUI.getState().view.param, "about", "and round from the top to the bottom");
   } finally {
+    await h.close();
+  }
+});
+
+test("Display resets both panel widths, and searching finds the layout setting", async () => {
+  const h = await mount(ACCOUNT, { name: "settings", param: "display" });
+  try {
+    await act(async () => usePanelLayout.getState().setWidths({ library: 440, nowPlaying: 380 }));
+    const row = h.row("Panel widths");
+    assert.ok(row);
+    await h.press(row.querySelector("button"));
+    assert.deepEqual(usePanelLayout.getState().widths, { library: 328, nowPlaying: 328 });
+    await h.press(h.nav("Account"));
+    await h.search("panel widths");
+    assert.ok(h.shown(h.row("Panel widths")));
+  } finally {
+    environment.window.dispatchEvent(new environment.window.Event("pagehide"));
     await h.close();
   }
 });
