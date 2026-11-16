@@ -95,6 +95,24 @@ test("saved widths fit a smaller window and recover on expansion without rewriti
   assert.equal(observers.size, 0, "unmount disconnects the size observer");
 });
 
+for (const [index, panel] of ["library", "nowPlaying"].entries()) {
+  test(`resizing ${panel} in a narrow window preserves the other panel's saved width`, async () => {
+    const h = await mount();
+    try {
+      await h.resizeWindow(984);
+      assert.deepEqual(h.values(), [244, 244]);
+      await h.key(index, "Home");
+      const expected = { library: 400, nowPlaying: 400, [panel]: 240 };
+      assert.deepEqual(usePanelLayout.getState().widths, expected);
+      assert.deepEqual(h.values(), index === 0 ? [240, 244] : [244, 240], "the opposite divider stays put");
+      await h.resizeWindow(1904);
+      assert.deepEqual(h.values(), [expected.library, expected.nowPlaying]);
+      await h.resizeWindow(984);
+      assert.deepEqual(h.values(), index === 0 ? [240, 248] : [248, 240], "window changes discard the old resize fit");
+    } finally { await h.close(); }
+  });
+}
+
 test("resizing and resetting keep the playlist mounted and its scroll position intact", async () => {
   const h = await mount();
   try {
@@ -125,6 +143,8 @@ test("resetting in a narrow window and resizing afterward both respect the conte
     assert.deepEqual(h.values(), [240, 248]);
     assert.equal(h.dividers[1].getAttribute("aria-valuemax"), "248");
     assert.equal(984 - h.values().reduce((sum, n) => sum + n, 0) - 16, 480);
+    await act(async () => usePanelLayout.getState().resetWidths());
+    assert.deepEqual(h.values(), [244, 244], "reset discards the current resize fit");
   } finally { await h.close(); }
 });
 

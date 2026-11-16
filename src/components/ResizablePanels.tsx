@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { DEFAULT_PANEL_WIDTHS, PANEL_DIVIDER_WIDTH, PANEL_MIN_WIDTH, fitPanelWidths, panelMaxWidth, resizePanel, type SidePanel } from "../lib/panelLayout";
+import { DEFAULT_PANEL_WIDTHS, PANEL_DIVIDER_WIDTH, PANEL_MIN_WIDTH, fitPanelWidths, panelMaxWidth, resizePanel, type PanelWidths, type SidePanel } from "../lib/panelLayout";
 import { usePanelLayout } from "../stores/panelLayout";
 import { PanelDivider } from "./PanelDivider";
 
@@ -9,6 +9,7 @@ export function ResizablePanels({ library, nowPlaying, children }: { library: Re
   const preferred = usePanelLayout((s) => s.widths);
   const [containerWidth, setContainerWidth] = useState(0);
   const [hydrated, setHydrated] = useState(usePanelLayout.persist.hasHydrated());
+  const [resized, setResized] = useState<{ preferred: PanelWidths; containerWidth: number; widths: PanelWidths } | null>(null);
 
   useEffect(() => {
     const off = usePanelLayout.persist.onFinishHydration(() => setHydrated(true));
@@ -19,7 +20,11 @@ export function ResizablePanels({ library, nowPlaying, children }: { library: Re
   useLayoutEffect(() => {
     const el = host.current;
     if (!el) return;
-    const measure = (): void => setContainerWidth(el.clientWidth);
+    const measure = (): void => {
+      const width = el.clientWidth;
+      setContainerWidth(width);
+      setResized((current) => current?.containerWidth === width ? current : null);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
@@ -28,10 +33,16 @@ export function ResizablePanels({ library, nowPlaying, children }: { library: Re
 
   // A smaller window fits the saved widths temporarily. Making it larger brings
   // them back; only an intentional resize or reset changes the saved preference.
-  const widths = fitPanelWidths(preferred, containerWidth);
+  // Refitting after every resize input would also move the untouched divider.
+  const widths = resized?.preferred === preferred && resized.containerWidth === containerWidth
+    ? resized.widths
+    : fitPanelWidths(preferred, containerWidth);
   const resize = (panel: SidePanel, width: number): void => {
     const next = resizePanel(widths, panel, width, containerWidth);
-    if (next[panel] !== widths[panel]) usePanelLayout.getState().setWidths(next);
+    if (next[panel] !== widths[panel]) {
+      usePanelLayout.getState().setWidths({ ...preferred, [panel]: next[panel] });
+      setResized({ preferred: usePanelLayout.getState().widths, containerWidth, widths: next });
+    }
   };
   const divider = (panel: SidePanel) => (
     <PanelDivider

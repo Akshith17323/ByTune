@@ -1164,6 +1164,14 @@ function LyricsPane() {
 function DisplayPane() {
   const s = useSettings();
   const resetWidths = usePanelLayout((st) => st.resetWidths);
+  const [hydrated, setHydrated] = useState(usePanelLayout.persist.hasHydrated());
+
+  useEffect(() => {
+    const off = usePanelLayout.persist.onFinishHydration(() => setHydrated(true));
+    setHydrated(usePanelLayout.persist.hasHydrated());
+    return off;
+  }, []);
+
   return (
     <>
       <Group title="Layout">
@@ -1171,7 +1179,7 @@ function DisplayPane() {
           icon={Columns3}
           title="Panel widths"
           note="Drag the dividers beside Library and Now Playing to resize. Widths are remembered on this device; double-click a divider to reset that panel."
-          control={<Button onClick={() => { resetWidths(); useUI.getState().toast("Panel widths reset"); }}>Reset widths</Button>}
+          control={<Button disabled={!hydrated} onClick={() => { resetWidths(); useUI.getState().toast("Panel widths reset"); }}>Reset widths</Button>}
         />
       </Group>
       <Group title="Motion and glass">
